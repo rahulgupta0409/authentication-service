@@ -45,6 +45,7 @@ type User struct {
 
 func (s *bidirectionalStream) AuthenticateUser(stream pb.UserService_AuthenticateUserServer) error {
 	var foundUser User
+
 	var ctx, cancel = context.WithTimeout(context.Background(), 1000000*time.Hour)
 	for {
 		req, err := stream.Recv()
@@ -71,7 +72,7 @@ func (s *bidirectionalStream) AuthenticateUser(stream pb.UserService_Authenticat
 			if err != nil {
 				return err
 			}
-			log.Printf("[RECEVIED REQUEST] : %v\n", req)
+			log.Printf("[RECEVIED REQUEST] : %v\n", req.UserId)
 
 		}
 
