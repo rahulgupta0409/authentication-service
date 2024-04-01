@@ -62,15 +62,8 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 		},
 	)
 
-	if token.Claims.(*SignedDetails).ExpiresAt < time.Now().Local().Unix() {
-		logger.Error(err.Error(),
-			zap.String("operation", "scddssd"),
-			zap.Time("timestamp", time.Now().UTC()),
-		)
-	}
-
 	if err != nil {
-		msg = fmt.Sprintf("your token is expired")
+		msg = fmt.Sprintf("your token is invalid")
 		logger.Error(err.Error(),
 			zap.String("operation", "validation"),
 			zap.Time("timestamp", time.Now().UTC()),
@@ -88,11 +81,12 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 		return
 	}
 
-	// if claims.ExpiresAt < time.Now().Local().Unix() {
-	// 	msg = fmt.Sprintf("token is expired")
-	// 	msg = err.Error()
-	// 	return
-	// }
+	if claims.ExpiresAt < time.Now().Local().Unix() {
+		logger.Error(err.Error(),
+			zap.String("operation", "scddssd"),
+			zap.Time("timestamp", time.Now().UTC()),
+		)
+	}
 	return claims, msg
 }
 
@@ -107,7 +101,7 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 func AuthenticateWithToken() http.HandlerFunc {
 	return func(response http.ResponseWriter, request *http.Request) {
 		userId := request.URL.Query().Get("UserId")
-		token := request.URL.Query().Get("Token")
+		token := request.Header.Get("Token")
 		var user User
 
 		logger := zap.Must(zap.NewProduction())
@@ -151,12 +145,18 @@ func AuthenticateWithToken() http.HandlerFunc {
 		result, _ := json.Marshal(resp)
 
 		claims, msg := ValidateToken(token)
+		if msg != "" {
+			http.Error(response, "Request Aborted", http.StatusForbidden)
+			return
+		}
+
 		if claims.ExpiresAt < time.Now().Local().Unix() {
 			logger.Info(msg,
 				zap.String("operation", "authentication"),
 				zap.Time("timestamp", time.Now().UTC()),
 			)
 		} else {
+			response.Header().Set("Content-Type", "application/json")
 			response.Write(result)
 			logger.Info("Successfully Authenticated",
 				zap.String("UserId", resp.UserId),
